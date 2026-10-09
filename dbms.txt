@@ -1,0 +1,139 @@
+
+USE blood_bank_db;
+
+-- 1. Blood groups
+CREATE TABLE IF NOT EXISTS BLOOD_GROUPS (
+    blood_group_id INT PRIMARY KEY AUTO_INCREMENT,
+    group_name VARCHAR(5) NOT NULL UNIQUE
+);
+
+-- 2. Donors
+CREATE TABLE IF NOT EXISTS DONORS (
+    donor_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    age INT NOT NULL,
+    gender VARCHAR(20),
+    phone VARCHAR(15),
+    blood_group_id INT NOT NULL,
+    FOREIGN KEY (blood_group_id)
+        REFERENCES BLOOD_GROUPS(blood_group_id)
+);
+
+-- 3. Donations
+CREATE TABLE IF NOT EXISTS DONATIONS (
+    donation_id INT PRIMARY KEY AUTO_INCREMENT,
+    donor_id INT NOT NULL,
+    quantity_ml INT NOT NULL,
+    units_donated INT NOT NULL DEFAULT 1,
+    donation_date DATE NOT NULL,
+    FOREIGN KEY (donor_id)
+        REFERENCES DONORS(donor_id),
+    CHECK (quantity_ml > 0),
+    CHECK (units_donated > 0)
+);
+
+-- 4. Blood stock
+CREATE TABLE IF NOT EXISTS BLOOD_UNITS (
+    unit_id INT PRIMARY KEY AUTO_INCREMENT,
+    blood_group_id INT NOT NULL UNIQUE,
+    available_units INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (blood_group_id)
+        REFERENCES BLOOD_GROUPS(blood_group_id),
+    CHECK (available_units >= 0)
+);
+
+
+
+INSERT IGNORE INTO BLOOD_GROUPS (group_name)
+VALUES
+    ('A+'), ('A-'),
+    ('B+'), ('B-'),
+    ('AB+'), ('AB-'),
+    ('O+'), ('O-');
+
+-- Create a stock record for every blood group.
+INSERT IGNORE INTO BLOOD_UNITS
+    (blood_group_id, available_units)
+SELECT blood_group_id, 0
+FROM BLOOD_GROUPS;
+
+SELECT * FROM BLOOD_GROUPS;
+SELECT * FROM BLOOD_UNITS;
+
+
+
+INSERT INTO DONORS
+    (name, age, gender, phone, blood_group_id)
+SELECT 'Arun Kumar', 25, 'Male', '9000000001',
+       blood_group_id
+FROM BLOOD_GROUPS
+WHERE group_name = 'A+'
+AND NOT EXISTS (
+    SELECT 1 FROM DONORS
+    WHERE phone = '9000000001'
+);
+
+INSERT INTO DONORS
+    (name, age, gender, phone, blood_group_id)
+SELECT 'Priya Devi', 28, 'Female', '9000000002',
+       blood_group_id
+FROM BLOOD_GROUPS
+WHERE group_name = 'O+'
+AND NOT EXISTS (
+    SELECT 1 FROM DONORS
+    WHERE phone = '9000000002'
+);
+
+INSERT INTO DONORS
+    (name, age, gender, phone, blood_group_id)
+SELECT 'Rahul Raj', 30, 'Male', '9000000003',
+       blood_group_id
+FROM BLOOD_GROUPS
+WHERE group_name = 'B+'
+AND NOT EXISTS (
+    SELECT 1 FROM DONORS
+    WHERE phone = '9000000003'
+);
+
+
+
+
+SELECT
+    d.donor_id,
+    d.name,
+    d.age,
+    d.gender,
+    d.phone,
+    bg.group_name
+FROM DONORS d
+JOIN BLOOD_GROUPS bg
+    ON d.blood_group_id = bg.blood_group_id;
+
+
+
+
+SELECT
+    bg.group_name,
+    bu.available_units
+FROM BLOOD_GROUPS bg
+JOIN BLOOD_UNITS bu
+    ON bg.blood_group_id = bu.blood_group_id
+WHERE bu.available_units < (
+    SELECT AVG(available_units)
+    FROM BLOOD_UNITS
+);
+
+
+
+SHOW CREATE PROCEDURE blood_bank_db.register_donation;
+
+
+SHOW CREATE FUNCTION blood_bank_db.get_available_units;
+
+
+
+USE blood_bank_db;
+SELECT * FROM BLOOD_GROUPS;
+SELECT * FROM DONORS;
+SELECT * FROM DONATIONS;
+SELECT * FROM BLOOD_UNITS;
